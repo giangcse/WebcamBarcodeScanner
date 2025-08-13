@@ -2,7 +2,7 @@
 using System.Data;
 using System.Data.SQLite;
 using System.Drawing;
-using System.IO; // Thêm thư viện này
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using AForge.Video;
@@ -18,38 +18,21 @@ namespace WebcamBarcodeScanner
         private VideoCaptureDevice videoSource;
         private ResultPoint[] lastResultPoints;
 
-        // === PHẦN THAY ĐỔI QUAN TRỌNG ===
-
-        /// <summary>
-        /// Lấy đường dẫn đầy đủ đến file CSDL trong thư mục AppData của người dùng.
-        /// </summary>
-        /// <returns>Đường dẫn tới file database.</returns>
         private static string GetDatabasePath()
         {
-            // Lấy thư mục AppData\Local - nơi an toàn để lưu dữ liệu ứng dụng
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-            // Tạo một thư mục con cho ứng dụng của bạn để tránh lộn xộn
             string appFolder = Path.Combine(appDataPath, "BarcodeScannerApp");
-            Directory.CreateDirectory(appFolder); // Lệnh này sẽ tạo thư mục nếu nó chưa tồn tại
-
-            // Kết hợp đường dẫn với tên file CSDL
+            Directory.CreateDirectory(appFolder);
             return Path.Combine(appFolder, "ScanHistory.sqlite");
         }
 
-        // Sử dụng phương thức mới để lấy đường dẫn
         private static readonly string dbFile = GetDatabasePath();
         private static readonly string connectionString = $"Data Source={dbFile};Version=3;";
-
-        // === KẾT THÚC PHẦN THAY ĐỔI ===
 
         public Form1()
         {
             InitializeComponent();
         }
-
-        // Các hàm còn lại giữ nguyên không thay đổi...
-        // ... (Bạn chỉ cần copy toàn bộ code này và dán đè lên file Form1.cs cũ là được) ...
 
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -59,10 +42,8 @@ namespace WebcamBarcodeScanner
         }
 
         #region Database Methods
-
         private void InitializeDatabase()
         {
-            // Bây giờ ứng dụng sẽ tạo file CSDL ở một nơi nó có quyền ghi
             if (!File.Exists(dbFile))
             {
                 SQLiteConnection.CreateFile(dbFile);
@@ -223,12 +204,24 @@ namespace WebcamBarcodeScanner
         #endregion
 
         #region Scanning and Export
+
+        // === PHẦN THAY ĐỔI QUAN TRỌNG ===
         private void timerScan_Tick(object sender, EventArgs e)
         {
             if (picVideo.Image == null) return;
 
-            BarcodeReader reader = new BarcodeReader { Options = { TryHarder = true } };
-            Result result = reader.Decode((Bitmap)picVideo.Image);
+            Result result = null;
+            try
+            {
+                // Đặt việc giải mã vào trong khối try-catch
+                // Nếu ZXing không xử lý được frame này, nó sẽ không làm crash ứng dụng
+                BarcodeReader reader = new BarcodeReader { Options = { TryHarder = true } };
+                result = reader.Decode((Bitmap)picVideo.Image);
+            }
+            catch (Exception)
+            {
+                // Bỏ qua lỗi và tiếp tục ở frame tiếp theo
+            }
 
             if (result != null)
             {
@@ -251,6 +244,7 @@ namespace WebcamBarcodeScanner
                 lastResultPoints = null;
             }
         }
+        // === KẾT THÚC PHẦN THAY ĐỔI ===
 
         private void btnExport_Click(object sender, EventArgs e)
         {
