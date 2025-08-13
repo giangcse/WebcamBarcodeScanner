@@ -2,7 +2,7 @@
 using System.Data;
 using System.Data.SQLite;
 using System.Drawing;
-using System.IO;
+using System.IO; // Thêm thư viện này
 using System.Linq;
 using System.Windows.Forms;
 using AForge.Video;
@@ -14,21 +14,43 @@ namespace WebcamBarcodeScanner
 {
     public partial class Form1 : Form
     {
-        // Khai báo các biến toàn cục
         private FilterInfoCollection videoDevices;
         private VideoCaptureDevice videoSource;
         private ResultPoint[] lastResultPoints;
 
-        // Khai báo đường dẫn file CSDL
-        private static readonly string dbFile = "ScanHistory.sqlite";
+        // === PHẦN THAY ĐỔI QUAN TRỌNG ===
+
+        /// <summary>
+        /// Lấy đường dẫn đầy đủ đến file CSDL trong thư mục AppData của người dùng.
+        /// </summary>
+        /// <returns>Đường dẫn tới file database.</returns>
+        private static string GetDatabasePath()
+        {
+            // Lấy thư mục AppData\Local - nơi an toàn để lưu dữ liệu ứng dụng
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+            // Tạo một thư mục con cho ứng dụng của bạn để tránh lộn xộn
+            string appFolder = Path.Combine(appDataPath, "BarcodeScannerApp");
+            Directory.CreateDirectory(appFolder); // Lệnh này sẽ tạo thư mục nếu nó chưa tồn tại
+
+            // Kết hợp đường dẫn với tên file CSDL
+            return Path.Combine(appFolder, "ScanHistory.sqlite");
+        }
+
+        // Sử dụng phương thức mới để lấy đường dẫn
+        private static readonly string dbFile = GetDatabasePath();
         private static readonly string connectionString = $"Data Source={dbFile};Version=3;";
+
+        // === KẾT THÚC PHẦN THAY ĐỔI ===
 
         public Form1()
         {
             InitializeComponent();
         }
 
-        // Sự kiện khi Form được tải lên
+        // Các hàm còn lại giữ nguyên không thay đổi...
+        // ... (Bạn chỉ cần copy toàn bộ code này và dán đè lên file Form1.cs cũ là được) ...
+
         private void Form1_Load(object sender, EventArgs e)
         {
             InitializeDatabase();
@@ -38,9 +60,9 @@ namespace WebcamBarcodeScanner
 
         #region Database Methods
 
-        // Khởi tạo CSDL và tạo/cập nhật bảng nếu cần
         private void InitializeDatabase()
         {
+            // Bây giờ ứng dụng sẽ tạo file CSDL ở một nơi nó có quyền ghi
             if (!File.Exists(dbFile))
             {
                 SQLiteConnection.CreateFile(dbFile);
@@ -49,14 +71,12 @@ namespace WebcamBarcodeScanner
             using (var conn = new SQLiteConnection(connectionString))
             {
                 conn.Open();
-                // Tạo bảng nếu chưa có
                 string createTableSql = "CREATE TABLE IF NOT EXISTS ScanHistory (ID INTEGER PRIMARY KEY AUTOINCREMENT, Result TEXT, ScanDate TEXT, ScanTime TEXT)";
                 using (var cmd = new SQLiteCommand(createTableSql, conn))
                 {
                     cmd.ExecuteNonQuery();
                 }
 
-                // Kiểm tra và thêm cột ScanTime nếu bảng cũ chưa có
                 var cmdCheck = new SQLiteCommand("PRAGMA table_info(ScanHistory)", conn);
                 var reader = cmdCheck.ExecuteReader();
                 bool columnExists = false;
@@ -78,7 +98,6 @@ namespace WebcamBarcodeScanner
             }
         }
 
-        // Thêm kết quả quét vào CSDL
         private void InsertScanResult(string result)
         {
             using (var conn = new SQLiteConnection(connectionString))
@@ -95,7 +114,6 @@ namespace WebcamBarcodeScanner
             }
         }
 
-        // Tải dữ liệu lên DataGridView
         private void LoadDataToGrid()
         {
             using (var conn = new SQLiteConnection(connectionString))
@@ -108,7 +126,6 @@ namespace WebcamBarcodeScanner
                     adapter.Fill(dt);
                     dgvHistory.DataSource = dt;
 
-                    // Tùy chỉnh tiêu đề và độ rộng cột
                     if (dgvHistory.Columns.Count > 0)
                     {
                         dgvHistory.Columns["ID"].HeaderText = "STT";
@@ -124,11 +141,9 @@ namespace WebcamBarcodeScanner
                 }
             }
         }
-
         #endregion
 
         #region Camera Control
-
         private void InitializeCamera()
         {
             videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
@@ -205,11 +220,9 @@ namespace WebcamBarcodeScanner
         {
             StopCamera();
         }
-
         #endregion
 
         #region Scanning and Export
-
         private void timerScan_Tick(object sender, EventArgs e)
         {
             if (picVideo.Image == null) return;
@@ -289,7 +302,6 @@ namespace WebcamBarcodeScanner
                 MessageBox.Show("Đã xảy ra lỗi khi xuất file: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         #endregion
     }
 }
